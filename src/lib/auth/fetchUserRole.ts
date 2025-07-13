@@ -1,17 +1,33 @@
-import { createClientSSR } from '../supabase/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-export async function fetchUserRole(userId: string) {
-  const supabase = await createClientSSR()
+export async function fetchUserRole(): Promise<string | null> {
+  const cookieStore = await cookies() // ✅ must await in Next.js 15
 
-  const { data, error } = await supabase
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (key) => cookieStore.get(key)?.value,
+        set() {},
+        remove() {},
+      },
+    }
+  )
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const userId = session?.user?.id
+  if (!userId) return null
+
+  const { data: user } = await supabase
     .from('users')
     .select('role')
     .eq('id', userId)
     .single()
 
-  if (error || !data?.role) {
-    throw new Error('Role not found for user')
-  }
-
-  return data.role
+  return user?.role || null
 }
