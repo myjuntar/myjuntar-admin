@@ -9,14 +9,17 @@ export default async function AuthCallbackPage() {
     data: { session },
   } = await supabase.auth.getSession()
 
-  if (!session) return redirect('/login')
+  if (!session?.user?.id) {
+    return redirect('/login')
+  }
 
   const userId = session.user.id
+
   try {
     const role = await fetchUserRole(userId)
-    return redirect(redirectByRole(role))
+    redirect(redirectByRole(role))
   } catch (error) {
     console.error('Error fetching user role:', error)
-    return redirect('/login')
+    redirect('/login')
   }
 }
